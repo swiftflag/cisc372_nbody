@@ -6,12 +6,10 @@
 #include "config.h"
 #include "planets.h"
 #include "compute.h"
-
 // represents the objects in the system.  Global variables
 vector3 *hVel, *d_hVel;
 vector3 *hPos, *d_hPos;
 double *mass;
-
 //initHostMemory: Create storage for numObjects entities in our system
 //Parameters: numObjects: number of objects to allocate
 //Returns: None
@@ -21,6 +19,7 @@ void initHostMemory(int numObjects)
 	hVel = (vector3 *)malloc(sizeof(vector3) * numObjects);
 	hPos = (vector3 *)malloc(sizeof(vector3) * numObjects);
 	mass = (double *)malloc(sizeof(double) * numObjects);
+
 }
 
 //freeHostMemory: Free storage allocated by a previous call to initHostMemory
@@ -58,7 +57,7 @@ void planetFill(){
 //Side Effects: Fills count entries in our system starting at index start (0 based)
 void randomFill(int start, int count)
 {
-	int i, j, c = start;
+	int i, j = start;
 	for (i = start; i < start + count; i++)
 	{
 		for (j = 0; j < 3; j++)
@@ -102,9 +101,22 @@ int main(int argc, char **argv)
 	#ifdef DEBUG
 	printSystem(stdout);
 	#endif
+	//device variable counterparts
+	vector3* dPos;
+	vector3* dVel;
+	double* dMass;
+	cudaMalloc(&dPos,  NUMENTITIES * sizeof(vector3));
+	cudaMalloc(&dVel,  NUMENTITIES * sizeof(vector3));
+	cudaMalloc(&dMass, NUMENTITIES * sizeof(double));
+
+	cudaMemcpy(dPos,  hPos,  NUMENTITIES * sizeof(vector3), cudaMemcpyHostToDevice);
+	cudaMemcpy(dVel,  hVel,  NUMENTITIES * sizeof(vector3), cudaMemcpyHostToDevice);
+	cudaMemcpy(dMass, mass,  NUMENTITIES * sizeof(double), cudaMemcpyHostToDevice);
 	for (t_now=0;t_now<DURATION;t_now+=INTERVAL){
-		compute();
+		compute(dPos, dVel, dMass);
 	}
+	cudaMemcpy(hPos, dPos, NUMENTITIES * sizeof(vector3), cudaMemcpyDeviceToHost);
+	cudaMemcpy(hVel, dVel, NUMENTITIES * sizeof(vector3), cudaMemcpyDeviceToHost);
 	clock_t t1=clock()-t0;
 #ifdef DEBUG
 	printSystem(stdout);
@@ -112,4 +124,7 @@ int main(int argc, char **argv)
 	printf("This took a total time of %f seconds\n",(double)t1/CLOCKS_PER_SEC);
 
 	freeHostMemory();
+	cudaFree(dPos);
+	cudaFree(dVel);
+	cudaFree(dMass);
 }

@@ -1,12 +1,23 @@
-FLAGS= -DDEBUG
-LIBS= -lm
-ALWAYS_REBUILD=makefile
+# Use nvcc for CUDA files
+NVCC = nvcc
+FLAGS = -DDEBUG
 
-nbody: nbody.o compute.o
-	gcc $(FLAGS) $^ -o $@ $(LIBS)
-nbody.o: nbody.c planets.h config.h vector.h $(ALWAYS_REBUILD)
-	gcc $(FLAGS) -c $< 
-compute.o: compute.c config.h vector.h $(ALWAYS_REBUILD)
-	gcc $(FLAGS) -c $< 
+# Final executable
+TARGET = nbody
+
+# Source files
+SRCS = nbody.cu compute.cu kernels.cu
+OBJS = $(SRCS:.cu=.o)
+
+# Build executable
+$(TARGET): $(OBJS)
+	$(NVCC) $(FLAGS) $(OBJS) -o $(TARGET)
+
+# Compile .cu → .o
+%.o: %.cu
+	$(NVCC) $(FLAGS) -c $< -o $@
+
+# Clean
 clean:
-	rm -f *.o nbody 
+	rm -f *.o $(TARGET)
+
